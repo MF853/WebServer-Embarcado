@@ -1,5 +1,5 @@
 # WebServer-Embarcado
-Projeto 2: Web Server Embarcado (Interface Web)
+Web Server Embarcado (Interface Web)
 Desenvolvimento de um site hospedado no próprio ESP32 (modo Station ou Access Point).
 
 Navegação: Sistema de abas ou links contendo "Tutorial" e "Controle".
