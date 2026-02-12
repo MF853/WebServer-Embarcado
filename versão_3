@@ -116,12 +116,12 @@ void setup() {
   //---Definição das páginas
   server.on("/", []() {
     server.sendHeader("Location", "/controle");
-    server.send(200, "text/plain", "");
+    server.send(302, "text/plain", "");
   });
 
-  server.on("/controle", handleControle());
+  server.on("/controle", handleControle);
 
-  server.on("/tutorial", handleTutorial());
+  server.on("/tutorial", handleTutorial);
 
   //---Definição dos botões
   server.on("/frente", []() {
