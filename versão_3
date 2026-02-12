@@ -48,6 +48,8 @@ void setup() {
     site += ".move { background-color: #1e3a96; color: white; }";
     site += ".arma-off { background-color: #E53935; color: white; }";
     site += ".arma-on  { background-color: #43A047; color: white; }";
+    site += "</style>";
+    site += "</head><body>";
     //=====MENU SUPERIOR=====
     site += "<div class='menu'>";
     site += "<a href='/tutorial'>Tutorial</a>";
@@ -68,6 +70,7 @@ void setup() {
     site += "<div></div>";
     site += "<a href='/tras'><button class='move'>↓</button></a>";
     site += "<div></div>";
+    site += "</div>";
     site += "</body></html>";
 
     server.send(200, "text/html", site);
@@ -107,7 +110,7 @@ void setup() {
     site += "<li><b>Botão Direita(→):</b> responsável por girar o robô para a direita.</li>";
     site += "<li><b>Botão da arma (ARMA):</b> responsável por ligar ou desligar a arma do robô.</li>";
     site += "</ul>";
-    site += "<p>O status da arma é indicado visualmente no controle através da cor do botão: se ele estiver vermelho = arma ligada e se ele estiver verde = arma desligada.</p>";
+    site += "<p>O status da arma é indicado visualmente no controle através da cor do botão: se ele estiver vermelho = arma desligada e se ele estiver verde = arma ligada.</p>";
     site += "</div>";
     site += "</body></html>";
 
