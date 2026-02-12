@@ -11,26 +11,9 @@ WebServer server(80);
 
 int status = 0;
 
-
-void setup() {
-  //Iniciar Monitor Serial
-  Serial.begin(115200);
-  //Conexão WiFi
-  WiFi.softAP(nome_rede, senha);
-  Serial.println("ESP32 iniciado em modo Access Point");
-  //Geração do IP
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("Endereço IP do AP: ");
-  Serial.println(IP);
-
-  //Definição das rotas a partir do site
-  //---Definição das páginas
-  server.on("/", []() {
-    server.sendHeader("Location", "/controle");
-    server.send(302, "text/plain", "");
-  });
-
-  server.on("/controle", []() {
+//Funções para modularização (boas-práticas)
+//---Página do controle
+void handleControle() {
     String site = "<!DOCTYPE html><html>";
     site += "<head>";
     site += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
@@ -74,9 +57,10 @@ void setup() {
     site += "</body></html>";
 
     server.send(200, "text/html", site);
-  });
+}
 
-  server.on("/tutorial", []() {
+//---Página de tutorial
+void handleTutorial() {
     String site = "<!DOCTYPE html><html>";
     site += "<head>";
     site += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
@@ -115,34 +99,56 @@ void setup() {
     site += "</body></html>";
 
     server.send(200, "text/html", site);
+}
+
+void setup() {
+  //Iniciar Monitor Serial
+  Serial.begin(115200);
+  //Conexão WiFi
+  WiFi.softAP(nome_rede, senha);
+  Serial.println("ESP32 iniciado em modo Access Point");
+  //Geração do IP
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("Endereço IP do AP: ");
+  Serial.println(IP);
+
+  //Definição das rotas a partir do site
+  //---Definição das páginas
+  server.on("/", []() {
+    server.sendHeader("Location", "/controle");
+    server.send(200, "text/plain", "");
   });
+
+  server.on("/controle", handleControle());
+
+  server.on("/tutorial", handleTutorial());
 
   //---Definição dos botões
   server.on("/frente", []() {
     Serial.println("Comando recebido: FRENTE");
-    server.send(200, "text/plain", "OK");
+    handleControle();
   });
   server.on("/tras", []() {
     Serial.println("Comando recebido: TRAS");
-    server.send(200, "text/plain", "OK");
+    handleControle();
   });
   server.on("/esquerda", []() {
     Serial.println("Comando recebido: ESQUERDA");
-    server.send(200, "text/plain", "OK");
+    handleControle();
   });
   server.on("/direita", []() {
     Serial.println("Comando recebido: DIREITA");
-    server.send(200, "text/plain", "OK");
+    handleControle();
   });
   server.on("/arma", []() {
     if (status == 0) {
       status = 1;
       Serial.println("Status Arma: LIGADA");
-      server.send(200, "text/plain", "OK");
+      handleControle();
     } else {
       status = 0;
       Serial.println("Status Arma: DESLIGADA");
-      server.send(200, "text/plain", "OK");
+      handleControle();
     }
     
   });
@@ -153,5 +159,7 @@ void setup() {
 
 void loop() {
   //Manter servidor sempre a postos para receber e entender requisição para executar o server.on()
+  server.handleClient();
+} e entender requisição para executar o server.on()
   server.handleClient();
 }
