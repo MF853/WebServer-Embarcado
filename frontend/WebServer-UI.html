@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ESP32 Grid Controller</title>
+    <style>
+        :root {
+            --c1: #7552ad; 
+            --c2: #63429b;
+            --c3: #52338a;
+            --c4: #402378;
+            --c5: #2e1366; 
+            --danger: #ff4d4d; 
+            --shadow-light: #3a1880; 
+            --shadow-dark:  #200d47; 
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--c5);
+            color: var(--text-main);
+            text-align: center;
+            margin: 0; padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation; 
+        }
+        h2 { font-weight: 300; letter-spacing: 1px; color: var(--c1); margin-top: 25px;}
+        .navbar { display: flex; justify-content: center; padding: 20px 0; background: transparent; }
+        .navbar button {
+            background: var(--c5); color: var(--text-muted); border: none; cursor: pointer;
+            padding: 10px 20px; margin: 0 5px; font-size: 14px; border-radius: 20px;
+            transition: all 0.3s ease; font-weight: 600;
+        }
+        .navbar button.active { color: var(--c1); box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light); }
+        .tabcontent { display: none; padding: 20px; animation: fadeIn 0.4s; }
+        .control-grid {
+            display: grid; grid-template-columns: 85px 85px 85px; grid-gap: 20px;
+            justify-content: center; margin-top: 40px; align-items: center;
+        }
+        .btn {
+            width: 80px; height: 80px; background-color: var(--c5); color: var(--c1);
+            border: none; border-radius: 15px; font-size: 30px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.1s ease;
+            box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+        }
+        .btn:active {
+            box-shadow: inset 8px 8px 16px var(--shadow-dark), inset -8px -8px 16px var(--shadow-light);
+            transform: scale(0.98); color: var(--c2);
+        }
+        .btn-stop { font-size: 14px; font-weight: bold; color: var(--danger); border-radius: 15px; }
+        .btn-weapon { 
+            grid-column: span 3; width: 100%; height: 65px; border-radius: 50px;
+            margin-top: 30px; color: var(--danger); font-weight: bold; letter-spacing: 2px;
+            text-transform: uppercase; font-size: 18px;
+        }
+        .btn-weapon:active {
+            color: var(--danger);
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+            text-shadow: 0 0 15px var(--danger); 
+        }
+        .glass-card {
+            background: var(--c5); box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light);
+            border-radius: 20px; padding: 25px; max-width: 350px; margin: 0 auto; text-align: left;
+        }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--shadow-dark); color: var(--text-muted); }
+        input[type="number"] {
+            width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--c5);
+            color: var(--c1); font-weight: bold; text-align: center; margin-top: 5px;
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light); outline: none;
+        }
+        .btn-save {
+            width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: 15px;
+            background: var(--c5); color: var(--c1); font-weight: bold; cursor: pointer;
+            box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+        }
+        .btn-save:active { box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light); }
+        @keyframes fadeIn { from {opacity: 0; transform: translateY(10px);} to {opacity: 1; transform: translateY(0);} }
+    </style>
+</head>
+<body onload="init()">
+    <div class="navbar">
+        <button class="tablinks active" onclick="openTab('Controle', this)">CONTROLE</button>
+        <button class="tablinks" onclick="openTab('Tutorial', this)">TUTORIAL</button>
+        <button class="tablinks" onclick="openTab('Config', this)">CONFIG</button>
+    </div>
+
+    <div id="Controle" class="tabcontent" style="display: block;">
+        <h2>Comando Remoto</h2>
+        <div class="control-grid">
+            <div></div><button class="btn" onclick="sendCommand('frente', 'move')">▲</button><div></div>
+            <button class="btn" onclick="sendCommand('esquerda', 'turn')">◄</button>
+            <button class="btn btn-stop" onclick="sendCommand('parar', 'stop')">STOP</button>
+            <button class="btn" onclick="sendCommand('direita', 'turn')">►</button>
+            <div></div><button class="btn" onclick="sendCommand('tras', 'move')">▼</button><div></div>
+            <button class="btn btn-weapon" onclick="sendCommand('arma', 'shot')">☢ DISPARAR ARMA ☢</button>
+        </div>
+        <p id="status-msg" style="margin-top:30px; color: var(--text-muted); font-size: 0.8em; letter-spacing: 1px;">SISTEMA ONLINE</p>
+    </div>
+
+    <div id="Tutorial" class="tabcontent">
+        <h2>Informações do Sistema</h2>
+        <div class="glass-card">
+            <p style="margin-top:0;">Interface de controle via Socket/HTTP.</p>
+            <h3 style="color: var(--c1); margin-bottom: 10px;">Valores Padrão</h3>
+            <div class="info-row"><span>Movimento (Frente/Trás)</span><strong>2 Rotações</strong></div>
+            <div class="info-row"><span>Giro (Esq/Dir)</span><strong>90 Graus</strong></div>
+            <div class="info-row" style="border-bottom: none;"><span>Sistema de Arma</span><strong>1 Disparo</strong></div>
+            <p style="font-size: 0.8em; color: #888; margin-top: 15px; border-top: 1px dashed #444; padding-top:10px;">* Modifique em <strong>CONFIG</strong>.</p>
+        </div>
+    </div>
+
+    <div id="Config" class="tabcontent">
+        <h2>Personalização</h2>
+        <div class="glass-card">
+            <div style="margin-bottom: 15px;"><label style="color: var(--text-muted); font-size: 14px;">Rotações</label><input type="number" id="input-move" value="2" min="1" max="10"></div>
+            <div style="margin-bottom: 15px;"><label style="color: var(--text-muted); font-size: 14px;">Graus (Giro)</label><input type="number" id="input-turn" value="90" step="5" min="5" max="180"></div>
+            <div style="margin-bottom: 15px;"><label style="color: var(--text-muted); font-size: 14px;">Qtd. Disparos</label><input type="number" id="input-shot" value="1" min="1" max="5"></div>
+            <button class="btn-save" onclick="saveConfig()">SALVAR AJUSTES</button>
+        </div>
+        <p id="config-msg" style="color: var(--c1); margin-top: 15px; height: 20px;"></p>
+    </div>
+
+    <script>
+        let config = { move: 2, turn: 90, shot: 1 };
+        function init() { document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false }); openTab('Controle', document.querySelector('.active')); }
+        function openTab(tabName, btnElement) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) { tablinks[i].className = tablinks[i].className.replace(" active", ""); }
+            document.getElementById(tabName).style.display = "block";
+            if(btnElement) btnElement.className += " active";
+        }
+        function saveConfig() {
+            config.move = document.getElementById('input-move').value;
+            config.turn = document.getElementById('input-turn').value;
+            config.shot = document.getElementById('input-shot').value;
+            let msg = document.getElementById('config-msg'); msg.innerText = "Parâmetros atualizados!";
+            setTimeout(() => { msg.innerText = ""; }, 2000);
+        }
+        function sendCommand(action, type) {
+            let value = 0;
+            if (type === 'move') value = config.move;
+            if (type === 'turn') value = config.turn;
+            if (type === 'shot') value = config.shot;
+            if (type === 'stop') value = 0;
+            let statusElem = document.getElementById('status-msg');
+            statusElem.innerText = "ENVIADO: " + action.toUpperCase() + " [VAL: " + value + "]";
+            statusElem.style.color = "var(--c1)";
+            fetch("/" + action + "?val=" + value).then(r => { if(!r.ok) throw new Error("Erro"); })
+            .catch(e => { statusElem.innerText = "FALHA NA CONEXÃO"; statusElem.style.color = "var(--danger)"; });
+        }
+    </script>
+</body>
+</html>
