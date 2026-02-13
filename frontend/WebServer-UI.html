@@ -121,7 +121,7 @@
 
     <div id="Tutorial" class="tabcontent">
         <div class="glass-card">
-            <h2 style="text-align: center; margin-top:0;">Como controlar o robô</h2>
+            <h2 style="text-align: center; margin-top:0;">Como controlar o robô *nome*</h2>
             <ul class="tutorial-list">
                 <li><b>Botão Frente (↑):</b> responsável por mover o robô para frente.</li>
                 <li><b>Botão Trás(↓):</b> responsável por mover o robô para trás.</li>
@@ -179,7 +179,18 @@
 
         function init() { 
             document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false }); 
-            openTab('Controle', document.querySelector('.active')); 
+            
+            // CORREÇÃO AQUI: Lê a URL e abre a aba correta sem mexer nos botões HTML
+            let path = window.location.pathname;
+            let navBtns = document.getElementsByClassName("tablinks");
+            
+            if (path === '/tutorial' || path === '/tutorial/') {
+                openTab('Tutorial', navBtns[1]);
+            } else if (path === '/config' || path === '/config/') {
+                openTab('Config', navBtns[2]);
+            } else {
+                openTab('Controle', navBtns[0]);
+            }
         }
         
         function openTab(tabName, btnElement) {

@@ -1,165 +1,398 @@
-//Modo de Acess Point
-
 #include <WiFi.h>
 #include <WebServer.h>
 
-//Dados da rede AP criada
+// --- CONFIGURAÇÕES DO AP ---
 const char *nome_rede = "ESP32_PROJETO_2";
 const char *senha = "12345678";
-//Criar servidor
+
 WebServer server(80);
 
-int status = 0;
+// --- CÓDIGO HTML/CSS/JS ---
+const char MAIN_page[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ESP32 D-Pad Controller</title>
+    <style>
+        :root {
+            --c1: #7552ad; 
+            --c2: #63429b;
+            --c3: #52338a;
+            --c4: #402378;
+            --c5: #2e1366; 
+            --danger: #ff4d4d; 
+            --active-move: #00d2ff; 
+            --shadow-light: #3a1880; 
+            --shadow-dark:  #200d47; 
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif; background-color: var(--c5);
+            color: var(--text-main); text-align: center; margin: 0; padding: 0;
+            user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; 
+        }
+        h2 { font-weight: 300; letter-spacing: 1px; color: var(--c1); margin-top: 25px;}
+        
+        .navbar { display: flex; justify-content: center; padding: 20px 0; background: transparent; }
+        .navbar button {
+            background: var(--c5); color: var(--text-muted); border: none; cursor: pointer;
+            padding: 10px 20px; margin: 0 5px; font-size: 14px; border-radius: 20px;
+            transition: all 0.3s ease; font-weight: 600;
+        }
+        .navbar button.active { color: var(--c1); box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light); }
+        
+        .tabcontent { display: none; padding: 20px; animation: fadeIn 0.4s; }
+        
+        /* GRID D-PAD */
+        .control-grid {
+            display: grid; grid-template-columns: 85px 85px 85px; grid-gap: 20px;
+            justify-content: center; margin-top: 40px; align-items: center;
+        }
+        
+        /* BOTÕES DIRECIONAIS (QUADRADOS 15PX) */
+        .btn-dir {
+            width: 80px; height: 80px; background-color: var(--c5); color: var(--c1);
+            border: none; border-radius: 15px; font-size: 30px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+            box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+        }
+        .btn-dir.active-move {
+            box-shadow: inset 8px 8px 16px var(--shadow-dark), inset -8px -8px 16px var(--shadow-light);
+            color: var(--active-move); text-shadow: 0 0 10px var(--active-move); transform: scale(0.95);
+        }
 
-//Funções para modularização (boas-práticas)
-//---Página do controle
-void handleControle() {
-    String site = "<!DOCTYPE html><html>";
-    site += "<head>";
-    site += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-    site += "<title>Controle do Robô *nome*</title>";
-    //=====CSS=====
-    site += "<style>";
-    site += "body { font-family: Arial; background-color: #f2f2f2; text-align: center; margin: 0; }";
-    //Menu superior (igual para as duas páginas)
-    site += ".menu { background-color: #333; padding: 15px; }";
-    site += ".menu a { color: white; margin: 0 20px; text-decoration: none; font-size: 18px; }";
-    site += ".menu a.active { text-decoration: underline; font-weight: bold; }";
-    //Classes para o controle
-    site += ".controle { margin-top: 40px; display: grid; grid-template-columns: 90px 90px 90px; gap: 15px; justify-content: center; }";
-    site += "button { font-size: 18px; padding: 20px; border-radius: 15px; border: none; }";
-    site += ".move { background-color: #1e3a96; color: white; }";
-    site += ".arma-off { background-color: #E53935; color: white; }";
-    site += ".arma-on  { background-color: #43A047; color: white; }";
-    site += "</style>";
-    site += "</head><body>";
-    //=====MENU SUPERIOR=====
-    site += "<div class='menu'>";
-    site += "<a href='/tutorial'>Tutorial</a>";
-    site += "<a href='/controle' class='active'>Controle</a>";
-    site += "</div>";
-    //=====CONTROLE=====
-    site += "<div class='controle'>";
-    site += "<div></div>";
-    site += "<a href='/frente'><button class='move'>↑</button></a>";
-    site += "<div></div>";
-    site += "<a href='/esquerda'><button class='move'>←</button></a>";
-    if (status == 1) {
-      site += "<a href='/arma'><button class='arma-on'>ARMA</button></a>";
-    } else {
-      site += "<a href='/arma'><button class='arma-off'>ARMA</button></a>";
-    }
-    site += "<a href='/direita'><button class='move'>→</button></a>";
-    site += "<div></div>";
-    site += "<a href='/tras'><button class='move'>↓</button></a>";
-    site += "<div></div>";
-    site += "</div>";
-    site += "</body></html>";
+        /* BOTÃO ARMA NO CENTRO (QUADRADO 15PX) */
+        .btn-weapon { 
+            width: 80px; height: 80px; background-color: var(--c5); color: var(--danger);
+            border: none; border-radius: 15px; font-size: 35px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+            box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+        }
+        .btn-weapon.active-weapon {
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+            color: #fff; background-color: #43A047 !important;
+            text-shadow: 0 0 5px #fff; transform: scale(0.95);
+        }
 
-    server.send(200, "text/html", site);
+        .weapon-label {
+            margin-top: 35px; font-size: 18px; font-weight: bold;
+            color: var(--text-muted); letter-spacing: 2px; transition: all 0.3s ease;
+        }
+
+        .glass-card {
+            background: var(--c5); box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light);
+            border-radius: 20px; padding: 25px; max-width: 400px; margin: 0 auto; text-align: left;
+        }
+        
+        /* ESTILOS DO TUTORIAL */
+        .tutorial-list { font-size: 16px; color: var(--text-main); padding-left: 20px; line-height: 1.6; }
+        .tutorial-list li { margin-bottom: 12px; }
+        .tutorial-desc { font-size: 15px; color: var(--text-muted); border-top: 1px dashed var(--shadow-light); padding-top: 15px; margin-top: 15px; }
+
+        /* ESTILOS DE CONFIGURAÇÃO */
+        select, input[type="number"] {
+            width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--c5);
+            color: var(--c1); font-weight: bold; text-align: center; margin-top: 5px;
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light); outline: none;
+            box-sizing: border-box;
+        }
+        select { appearance: none; cursor: pointer; }
+        
+        .btn-save {
+            width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: 15px;
+            background: var(--c5); color: var(--c1); font-weight: bold; cursor: pointer;
+            box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+        }
+        .btn-save:active { box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light); }
+        @keyframes fadeIn { from {opacity: 0; transform: translateY(10px);} to {opacity: 1; transform: translateY(0);} }
+    </style>
+</head>
+<body onload="init()">
+    <div class="navbar">
+        <button class="tablinks active" onclick="openTab('Controle', this)">CONTROLE</button>
+        <button class="tablinks" onclick="openTab('Tutorial', this)">TUTORIAL</button>
+        <button class="tablinks" onclick="openTab('Config', this)">CONFIG</button>
+    </div>
+
+    <div id="Controle" class="tabcontent" style="display: block;">
+        <h2>Comando Remoto</h2>
+        <div class="control-grid">
+            <div></div><button class="btn-dir" onclick="sendCommand('frente', 'move', this)">▲</button><div></div>
+            <button class="btn-dir" onclick="sendCommand('esquerda', 'turn', this)">◄</button>
+            <button class="btn-weapon" id="btn-arma" onclick="toggleWeapon(this)">☢</button>
+            <button class="btn-dir" onclick="sendCommand('direita', 'turn', this)">►</button>
+            <div></div><button class="btn-dir" onclick="sendCommand('tras', 'move', this)">▼</button><div></div>
+        </div>
+        <div class="weapon-label" id="weapon-status-text">ARMA DESATIVADA</div>
+        <p id="status-msg" style="margin-top:20px; color: var(--text-muted); font-size: 0.8em; letter-spacing: 1px;">ROBÔ PARADO (MODO PADRÃO)</p>
+    </div>
+
+    <div id="Tutorial" class="tabcontent">
+        <div class="glass-card">
+            <h2 style="text-align: center; margin-top:0;">Como controlar o robô *nome*</h2>
+            <ul class="tutorial-list">
+                <li><b>Botão Frente (↑):</b> responsável por mover o robô para frente.</li>
+                <li><b>Botão Trás(↓):</b> responsável por mover o robô para trás.</li>
+                <li><b>Botão Esquerda(←):</b> responsável por girar o robô para a esquerda.</li>
+                <li><b>Botão Direita(→):</b> responsável por girar o robô para a direita.</li>
+                <li><b>Botão da arma (ARMA):</b> responsável por ligar ou desligar a arma do robô.</li>
+            </ul>
+            <p class="tutorial-desc">O status da arma é indicado visualmente no controle através da cor do botão: se ele estiver vermelho = arma desligada e se ele estiver verde = arma ligada.</p>
+            
+            <h3 style="color: var(--c1); margin-top: 25px; margin-bottom: 10px; border-top: 1px dashed var(--shadow-light); padding-top: 20px;">Personalização (Aba Config)</h3>
+            <ul class="tutorial-list" style="margin-top: 0;">
+                <li><b>Modo Padrão:</b> O comando permanece ativo de forma contínua. Pressione o botão novamente para parar a ação.</li>
+                <li><b>Modo Temporizado:</b> O comando é ativado apenas durante o tempo definido (em segundos) e para automaticamente.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="Config" class="tabcontent">
+        <h2>Personalização</h2>
+        <div class="glass-card">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="color: var(--text-muted); font-size: 14px;">Modo de Controle</label>
+                <select id="input-mode" onchange="toggleTimeInputs()">
+                    <option value="padrao">Padrão (Liga/Desliga manual)</option>
+                    <option value="tempo">Temporizado (Automático)</option>
+                </select>
+            </div>
+
+            <div id="time-settings" style="display: none; border-top: 1px dashed var(--shadow-light); padding-top: 15px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="color: var(--text-muted); font-size: 14px;">Tempo de Movimento (Segundos)</label>
+                    <input type="number" id="input-time-move" value="2" min="1" max="10">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="color: var(--text-muted); font-size: 14px;">Tempo de Giro (Segundos)</label>
+                    <input type="number" id="input-time-turn" value="1" min="1" max="10">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="color: var(--text-muted); font-size: 14px;">Tempo da Arma (Segundos)</label>
+                    <input type="number" id="input-time-shot" value="3" min="1" max="10">
+                </div>
+            </div>
+
+            <button class="btn-save" onclick="saveConfig()">SALVAR AJUSTES</button>
+        </div>
+        <p id="config-msg" style="color: var(--c1); margin-top: 15px; height: 20px;"></p>
+    </div>
+
+    <script>
+        // Objeto de configuração atualizado
+        let config = { mode: 'padrao', timeMove: 2, timeTurn: 1, timeShot: 3 };
+        let weaponState = false;
+        let activeTimer = null; // Guarda o timer do modo temporizado
+
+        function init() { 
+            document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false }); 
+            
+            // CORREÇÃO AQUI: Lê a URL e abre a aba correta sem mexer nos botões HTML
+            let path = window.location.pathname;
+            let navBtns = document.getElementsByClassName("tablinks");
+            
+            if (path === '/tutorial' || path === '/tutorial/') {
+                openTab('Tutorial', navBtns[1]);
+            } else if (path === '/config' || path === '/config/') {
+                openTab('Config', navBtns[2]);
+            } else {
+                openTab('Controle', navBtns[0]);
+            }
+        }
+        
+        function openTab(tabName, btnElement) {
+            let tabcontents = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontents.length; i++) tabcontents[i].style.display = "none";
+            let tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
+            document.getElementById(tabName).style.display = "block";
+            if(btnElement) btnElement.classList.add("active");
+        }
+
+        // Exibe ou oculta as opções de tempo dependendo do modo escolhido
+        function toggleTimeInputs() {
+            let mode = document.getElementById('input-mode').value;
+            document.getElementById('time-settings').style.display = (mode === 'tempo') ? 'block' : 'none';
+        }
+
+        function saveConfig() {
+            config.mode = document.getElementById('input-mode').value;
+            config.timeMove = parseInt(document.getElementById('input-time-move').value);
+            config.timeTurn = parseInt(document.getElementById('input-time-turn').value);
+            config.timeShot = parseInt(document.getElementById('input-time-shot').value);
+            
+            let msg = document.getElementById('config-msg'); 
+            msg.innerText = "Parâmetros atualizados!";
+            setTimeout(() => { msg.innerText = ""; }, 2000);
+
+            let statusElem = document.getElementById('status-msg');
+            statusElem.innerText = "ROBÔ PARADO (" + (config.mode === 'tempo' ? "MODO TEMPO" : "MODO PADRÃO") + ")";
+        }
+
+        // LIGA/DESLIGA DA ARMA
+        function toggleWeapon(btnElement) {
+            let labelElem = document.getElementById('weapon-status-text');
+            
+            // Se já tem um timer rolando, cancela
+            if(activeTimer && config.mode === 'tempo') clearTimeout(activeTimer);
+
+            weaponState = !weaponState; 
+
+            if(weaponState) {
+                btnElement.classList.add('active-weapon');
+                labelElem.innerText = "ARMA LIGADA";
+                labelElem.style.color = "#43A047";
+                
+                fetch("/arma?estado=1&modo=" + config.mode + "&tempo=" + config.timeShot);
+
+                // Se for MODO TEMPORIZADO, desliga automaticamente após X segundos
+                if(config.mode === 'tempo') {
+                    activeTimer = setTimeout(() => {
+                        btnElement.classList.remove('active-weapon');
+                        labelElem.innerText = "ARMA DESLIGADA";
+                        labelElem.style.color = "var(--text-muted)";
+                        weaponState = false;
+                        fetch("/arma?estado=0");
+                    }, config.timeShot * 1000);
+                }
+            } else {
+                // Desligamento manual
+                btnElement.classList.remove('active-weapon');
+                labelElem.innerText = "ARMA DESLIGADA";
+                labelElem.style.color = "var(--text-muted)";
+                fetch("/arma?estado=0");
+            }
+        }
+
+        // COMANDOS DE MOVIMENTO
+        function sendCommand(action, type, btnElement) {
+            let statusElem = document.getElementById('status-msg');
+            let isAlreadyActive = btnElement.classList.contains('active-move');
+
+            // Limpa visual e timers antigos
+            if(activeTimer) clearTimeout(activeTimer);
+            document.querySelectorAll('.btn-dir').forEach(btn => btn.classList.remove('active-move'));
+
+            if (isAlreadyActive && config.mode === 'padrao') {
+                // MODO PADRÃO: Clique para desligar
+                statusElem.innerText = "ROBÔ PARADO (MODO PADRÃO)";
+                statusElem.style.color = "var(--text-muted)";
+                fetch("/parar");
+            } else {
+                // ACIONAR MOVIMENTO
+                btnElement.classList.add('active-move');
+                
+                if (config.mode === 'tempo') {
+                    let timeVal = (type === 'move') ? config.timeMove : config.timeTurn;
+                    statusElem.innerText = "MOVENDO: " + action.toUpperCase() + " (" + timeVal + "s)";
+                    statusElem.style.color = "var(--active-move)";
+                    
+                    fetch("/" + action + "?modo=tempo&tempo=" + timeVal);
+
+                    // Auto-Desligar após o tempo configurado
+                    activeTimer = setTimeout(() => {
+                        btnElement.classList.remove('active-move');
+                        statusElem.innerText = "ROBÔ PARADO (MODO TEMPO)";
+                        statusElem.style.color = "var(--text-muted)";
+                        fetch("/parar"); // Envia parada pro ESP32
+                    }, timeVal * 1000);
+
+                } else {
+                    // MODO PADRÃO: Fica ligado até clicarem de novo
+                    statusElem.innerText = "MOVENDO: " + action.toUpperCase() + " (CONTÍNUO)";
+                    statusElem.style.color = "var(--active-move)";
+                    fetch("/" + action + "?modo=padrao");
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+)rawliteral";
+
+// --- FUNÇÕES DE ROTAS DO SERVIDOR ---
+
+void handleRoot() {
+    server.send(200, "text/html", MAIN_page);
 }
 
-//---Página de tutorial
-void handleTutorial() {
-    String site = "<!DOCTYPE html><html>";
-    site += "<head>";
-    site += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-    site += "<title>Tutorial</title>";
-    //===== CSS =====
-    site += "<style>";
-    site += "body { font-family: Arial; background-color: #f2f2f2; margin: 0; }";
-    //Menu superior (igual para as duas páginas)
-    site += ".menu { background-color: #333; padding: 15px; text-align: center; }";
-    site += ".menu a { color: white; margin: 0 20px; text-decoration: none; font-size: 18px; }";
-    site += ".menu a.active { text-decoration: underline; font-weight: bold; }";
-    //Conteúdo
-    site += ".content { padding: 30px; max-width: 600px; margin: auto; }";
-    site += "h1 { text-align: center; }";
-    site += "ul { font-size: 18px; }";
-    site += "li { margin-bottom: 10px; }";
-    site += "</style>";
-    site += "</head><body>";
-    //===== MENU =====
-    site += "<div class='menu'>";
-    site += "<a href='/tutorial' class='active'>Tutorial</a>";
-    site += "<a href='/controle'>Controle</a>";
-    site += "</div>";
-    //===== CONTEÚDO =====
-    site += "<div class='content'>";
-    site += "<h1>Como controlar o robô *nome*</h1>";
-    site += "<ul>";
-    site += "<li><b>Botão Frente (↑):</b> responsável por mover o robô para frente.</li>";
-    site += "<li><b>Botão Trás(↓):</b> responsável por mover o robô para trás.</li>";
-    site += "<li><b>Botão Esquerda(←):</b> responsável por girar o robô para a esquerda.</li>";
-    site += "<li><b>Botão Direita(→):</b> responsável por girar o robô para a direita.</li>";
-    site += "<li><b>Botão da arma (ARMA):</b> responsável por ligar ou desligar a arma do robô.</li>";
-    site += "</ul>";
-    site += "<p>O status da arma é indicado visualmente no controle através da cor do botão: se ele estiver vermelho = arma desligada e se ele estiver verde = arma ligada.</p>";
-    site += "</div>";
-    site += "</body></html>";
+void processarMovimento(String comando) {
+    String modo = server.arg("modo"); 
+    String tempo = server.arg("tempo"); 
+    
+    Serial.println("-------------------------");
+    Serial.print("ROBÔ ESTADO: MOVENDO PARA ");
+    Serial.println(comando);
+    
+    if (modo == "tempo") {
+      Serial.print("Modo Temporizado: O robô andará por ");
+      Serial.print(tempo);
+      Serial.println(" segundos e parará automaticamente.");
+    } else {
+      Serial.println("Modo Padrão: O robô andará continuamente até receber ordem de parada.");
+    }
+    
+    server.send(200, "text/plain", "OK");
+}
 
-    server.send(200, "text/html", site);
+void processarArma() {
+    String estado = server.arg("estado"); 
+    String modo = server.arg("modo");
+    String tempo = server.arg("tempo");
+    
+    Serial.println("********** ATENÇÃO **********");
+    if(estado == "1") {
+        Serial.print("Status Arma: LIGADA!");
+        if (modo == "tempo") {
+            Serial.print(" (Ficará ativada por ");
+            Serial.print(tempo);
+            Serial.println(" segundos)");
+        } else {
+            Serial.println(" (Modo Manual Contínuo)");
+        }
+    } else {
+        Serial.println("Status Arma: DESLIGADA!");
+    }
+    Serial.println("*****************************");
+
+    server.send(200, "text/plain", "OK");
+}
+
+void processarParada() {
+    Serial.println("-------------------------");
+    Serial.println("ROBÔ ESTADO: PARADO");
+    server.send(200, "text/plain", "OK");
 }
 
 void setup() {
-  //Iniciar Monitor Serial
   Serial.begin(115200);
-  //Conexão WiFi
+
   WiFi.softAP(nome_rede, senha);
-  Serial.println("ESP32 iniciado em modo Access Point");
-  //Geração do IP
-  IPAddress IP = WiFi.softAPIP();
+  Serial.println("\nESP32 iniciado em modo Access Point");
   Serial.print("Endereço IP do AP: ");
-  Serial.println(IP);
+  Serial.println(WiFi.softAPIP());
 
-  //Definição das rotas a partir do site
-  //---Definição das páginas
-  server.on("/", []() {
-    server.sendHeader("Location", "/controle");
-    server.send(302, "text/plain", "");
-  });
+  server.on("/", handleRoot);
+  server.on("/controle", handleRoot); 
+  server.on("/tutorial", handleRoot); 
+  server.on("/config", handleRoot); // CORREÇÃO AQUI: Adicionado no Backend
 
-  server.on("/controle", handleControle);
-
-  server.on("/tutorial", handleTutorial);
-
-  //---Definição dos botões
-  server.on("/frente", []() {
-    Serial.println("Comando recebido: FRENTE");
-    handleControle();
-  });
-  server.on("/tras", []() {
-    Serial.println("Comando recebido: TRAS");
-    handleControle();
-  });
-  server.on("/esquerda", []() {
-    Serial.println("Comando recebido: ESQUERDA");
-    handleControle();
-  });
-  server.on("/direita", []() {
-    Serial.println("Comando recebido: DIREITA");
-    handleControle();
-  });
-  server.on("/arma", []() {
-    if (status == 0) {
-      status = 1;
-      Serial.println("Status Arma: LIGADA");
-      handleControle();
-    } else {
-      status = 0;
-      Serial.println("Status Arma: DESLIGADA");
-      handleControle();
-    }
-    
-  });
+  server.on("/frente", []() { processarMovimento("FRENTE"); });
+  server.on("/tras", []() { processarMovimento("TRAS"); });
+  server.on("/esquerda", []() { processarMovimento("ESQUERDA"); });
+  server.on("/direita", []() { processarMovimento("DIREITA"); });
+  
+  server.on("/parar", processarParada);
+  server.on("/arma", processarArma);
 
   server.begin();
+  Serial.println("Servidor HTTP iniciado. Aguardando comandos...");
 }
 
-
 void loop() {
-  //Manter servidor sempre a postos para receber e entender requisição para executar o server.on()
-  server.handleClient();
-} e entender requisição para executar o server.on()
   server.handleClient();
 }
